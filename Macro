@@ -1,0 +1,162 @@
+function macro()
+    local TweenService = game:GetService("TweenService")
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local player = Players.LocalPlayer
+    local gui = Instance.new("ScreenGui")
+    gui.Parent = player:WaitForChild("PlayerGui")
+    gui.ResetOnSpawn = false
+
+    local recording = false
+    local playing = false
+    local actions = {}
+    local startTime = 0
+
+    -- GUI principal
+    local menu = Instance.new("Frame")
+    menu.Size = UDim2.new(0, 0, 0, 0)
+    menu.Position = UDim2.new(0.3, 0, 0.3, 0)
+    menu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    menu.BorderSizePixel = 0
+    menu.Active = true
+    menu.Draggable = true
+    menu.Parent = gui
+
+    local topBar = Instance.new("Frame")
+    topBar.Size = UDim2.new(1, 0, 0, 30)
+    topBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    topBar.BorderSizePixel = 0
+    topBar.Parent = menu
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -100, 1, 0)
+    title.Position = UDim2.new(0, 10, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Tower Defense Macro"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamSemibold
+    title.TextSize = 16
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = topBar
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 1, 0)
+    closeBtn.Position = UDim2.new(1, -30, 0, 0)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(160, 40, 40)
+    closeBtn.Text = "X"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.Parent = topBar
+
+    local miniBtn = Instance.new("TextButton")
+    miniBtn.Size = UDim2.new(0, 30, 1, 0)
+    miniBtn.Position = UDim2.new(1, -60, 0, 0)
+    miniBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
+    miniBtn.Text = "-"
+    miniBtn.Font = Enum.Font.GothamBold
+    miniBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    miniBtn.Parent = topBar
+
+    local bubble = Instance.new("TextButton")
+    bubble.Size = UDim2.new(0, 60, 0, 60)
+    bubble.Position = UDim2.new(0.05, 0, 0.8, 0)
+    bubble.BackgroundColor3 = Color3.fromRGB(0, 160, 255)
+    bubble.Text = "Menu"
+    bubble.Visible = false
+    bubble.Active = true
+    bubble.Draggable = true
+    bubble.Parent = gui
+
+    local function createButton(name, posY, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -20, 0, 40)
+        btn.Position = UDim2.new(0, 10, 0, posY)
+        btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        btn.Text = name
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 15
+        btn.Parent = menu
+        btn.MouseButton1Click:Connect(callback)
+    end
+
+    -- Botones del menú
+    createButton("Grabar Macro", 40, function()
+        actions = {}
+        recording = true
+        startTime = tick()
+        print("Grabación iniciada")
+    end)
+
+    createButton("Reproducir Macro", 90, function()
+        if #actions == 0 then
+            warn("No hay acciones para reproducir")
+            return
+        end
+        playing = true
+        coroutine.wrap(function()
+            for _, act in ipairs(actions) do
+                if not playing then break end
+                task.wait(act.tiempo)
+                -- Clonar la torre en la posición grabada
+                local template = workspace:FindFirstChild(act.tipoTorre)
+                if template then
+                    local clone = template:Clone()
+                    clone.CFrame = act.cframe
+                    clone.Parent = workspace
+                end
+            end
+            playing = false
+        end)()
+        print("Reproducción iniciada")
+    end)
+
+    createButton("Apagar Macros", 140, function()
+        recording = false
+        playing = false
+        print("Macros apagadas")
+    end)
+
+    -- Animación apertura
+    TweenService:Create(menu, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = UDim2.new(0, 350, 0, 250)}):Play()
+
+    -- Cerrar / minimizar
+    closeBtn.MouseButton1Click:Connect(function()
+        TweenService:Create(menu, TweenInfo.new(0.25), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+        task.wait(0.25)
+        menu:Destroy()
+        bubble:Destroy()
+    end)
+
+    miniBtn.MouseButton1Click:Connect(function()
+        TweenService:Create(menu, TweenInfo.new(0.25), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+        task.wait(0.25)
+        menu.Visible = false
+        bubble.Visible = true
+    end)
+
+    bubble.MouseButton1Click:Connect(function()
+        menu.Visible = true
+        bubble.Visible = false
+        TweenService:Create(menu, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 350, 0, 250)}):Play()
+    end)
+
+    -- Grabar colocaciones de torres
+    if workspace:FindFirstChild("Towers") then
+        workspace.Towers.ChildAdded:Connect(function(tower)
+            if recording then
+                table.insert(actions, {
+                    tipoTorre = tower.Name,
+                    cframe = tower.CFrame,
+                    tiempo = tick() - startTime
+                })
+                startTime = tick()
+                print("Torre grabada:", tower.Name)
+            end
+        end)
+    end
+end
+
+macro()
